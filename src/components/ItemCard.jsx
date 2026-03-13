@@ -11,7 +11,6 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
     }
     if (item.category && categoryIcons[item.category])
       return categoryIcons[item.category]
-
     const name = item.name.toLowerCase()
     if (name.includes("wallet"))  return "👛"
     if (name.includes("bottle"))  return "🥤"
@@ -22,22 +21,16 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
     return "📦"
   }
 
-  // Format the user-entered dateTime nicely
   const formatDateTime = (dt) => {
     if (!dt) return null
     const d = new Date(dt)
     if (isNaN(d)) return null
     return d.toLocaleString("en-IN", {
-      day:    "2-digit",
-      month:  "short",
-      year:   "numeric",
-      hour:   "2-digit",
-      minute: "2-digit",
-      hour12: true
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: true
     })
   }
 
-  // How long ago was it posted (createdAt)
   const getTimeAgo = (ts) => {
     if (!ts) return null
     const diff  = Date.now() - ts
@@ -92,7 +85,7 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
         borderRadius: "14px",
         padding: "18px",
         boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
-        transition: "all 0.25s ease",
+        transition: "transform 0.25s ease, box-shadow 0.25s ease",
         position: "relative",
         border: `2px solid ${s.border}`,
         display: "flex",
@@ -105,11 +98,8 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
       onMouseLeave={e => {
         e.currentTarget.style.transform = "translateY(0) scale(1)"
         e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.08)"
-        setConfirmDelete(false)
-        setActionDone(false)
       }}
     >
-
       {/* STATUS BADGE */}
       <div style={{
         position: "absolute", top: "12px", right: "12px",
@@ -142,7 +132,7 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
       <h3 style={{
         margin: "4px 0", fontSize: "17px",
         color: "#1e1b4b", fontWeight: "700",
-        paddingRight: "70px" // space for status badge
+        paddingRight: "70px"
       }}>
         {item.name}
       </h3>
@@ -165,7 +155,7 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
         📍 {item.location}
       </p>
 
-      {/* USER-ENTERED DATE/TIME */}
+      {/* DATE TIME */}
       {item.dateTime && (
         <p style={{ color: "#666", fontSize: "13px", margin: "4px 0" }}>
           📅 {formatDateTime(item.dateTime)}
@@ -187,7 +177,7 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
         </p>
       )}
 
-      {/* POSTED TIMESTAMP */}
+      {/* POSTED TIME */}
       {item.createdAt && (
         <p style={{ color: "#ccc", fontSize: "11px", margin: "6px 0 10px" }}>
           🕐 Posted {getTimeAgo(item.createdAt)}
@@ -208,7 +198,7 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
         </div>
       )}
 
-      {/* ACTION BUTTONS ROW */}
+      {/* ACTION BUTTONS */}
       <div style={{ display: "flex", gap: "6px", marginTop: "auto" }}>
 
         {/* I Found It / Claim Item */}
@@ -228,7 +218,7 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
           </button>
         )}
 
-        {/* EDIT — only for non-resolved items */}
+        {/* EDIT */}
         {item.status !== "Resolved" && (
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(item) }}
@@ -237,11 +227,13 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
               background: "#f3f4f6", color: "#4f46e5",
               border: "1.5px solid #e0e7ff",
               borderRadius: "8px", cursor: "pointer",
-              fontSize: "13px", fontWeight: "600",
-              transition: "all 0.2s"
+              fontSize: "12px", fontWeight: "600",
+              transition: "all 0.2s",
+              display: "flex", alignItems: "center",
+              justifyContent: "center", gap: "4px"
             }}
           >
-            ✏️
+            ✏️ Edit
           </button>
         )}
 
@@ -251,6 +243,8 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
             e.stopPropagation()
             if (!confirmDelete) {
               setConfirmDelete(true)
+              // Auto reset after 3 seconds if not confirmed
+              setTimeout(() => setConfirmDelete(false), 3000)
             } else {
               deleteItem(item.id)
             }
@@ -261,12 +255,13 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
             color: confirmDelete ? "white" : "#ef4444",
             border: "none", borderRadius: "8px",
             cursor: "pointer", fontSize: "12px",
-            fontWeight: "600", transition: "all 0.2s"
+            fontWeight: "600", transition: "all 0.2s",
+            display: "flex", alignItems: "center",
+            justifyContent: "center", gap: "4px"
           }}
         >
-          {confirmDelete ? "Sure?" : "🗑"}
+          {confirmDelete ? "⚠️ Sure?" : "🗑 Delete"}
         </button>
-
       </div>
     </div>
   )

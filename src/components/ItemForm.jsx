@@ -32,7 +32,7 @@ function ItemForm({ addItem, initialValues = null, isEdit = false }) {
       dateTime,
       image,
       // only set createdAt on new items
-      ...(!isEdit && { id: Date.now(), createdAt: Date.now() })
+      ...(!isEdit && { createdAt: Date.now() })
     }
 
     addItem(item)
@@ -139,7 +139,7 @@ function ItemForm({ addItem, initialValues = null, isEdit = false }) {
 
         {/* Date & Time */}
         <div>
-          <label style={labelStyle}>Date & Time *</label>
+          <label style={labelStyle}>Date & Time (optional)</label>
           <input
             type="datetime-local"
             value={dateTime}

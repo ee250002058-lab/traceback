@@ -13,7 +13,7 @@ import {
   updateItem  as apiUpdate
 } from "../utils/api.js"
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+// ─── helpers ──────────────────────────────────────────────────────────────────
 const norm = (s = "") => s.toLowerCase().trim().replace(/\s+/g, " ")
 
 const locationsMatch = (a, b) => {
@@ -44,23 +44,18 @@ const namesAreRelated = (a, b) => {
 }
 
 const CACHE_KEY = "traceback_items_cache"
-
 const loadCache = () => {
   try {
-    const cached = localStorage.getItem(CACHE_KEY)
-    return cached ? JSON.parse(cached) : []
+    const c = localStorage.getItem(CACHE_KEY)
+    return c ? JSON.parse(c) : []
   } catch { return [] }
 }
-
 const saveCache = (items) => {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(items))
-  } catch {}
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(items)) } catch {}
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
 function Dashboard({ darkMode }) {
-  // Start with cached data immediately — no loading screen
   const [items,          setItems]          = useState(loadCache)
   const [syncing,        setSyncing]        = useState(false)
   const [syncError,      setSyncError]      = useState(false)
@@ -72,34 +67,28 @@ function Dashboard({ darkMode }) {
   const [aiLoading,      setAiLoading]      = useState(false)
   const [editingItem,    setEditingItem]    = useState(null)
 
+  // Use refs to avoid stale closures in callbacks
   const detectedCache = useRef({})
+  const itemsRef      = useRef(items)
+  useEffect(() => { itemsRef.current = items }, [items])
 
-  // ── Sync from backend silently ────────────────────────────────────────────
+  // ── Sync ──────────────────────────────────────────────────────────────────
   const syncItems = useCallback(async (isBackground = false) => {
-    // For background polls — never show any error, never block UI
     if (!isBackground) setSyncing(true)
     try {
       const data = await fetchItems()
       setItems(data)
-      saveCache(data) // update local cache with fresh data
+      saveCache(data)
       setSyncError(false)
     } catch {
-      if (!isBackground) {
-        // Only show error on the initial load, not on background polls
-        setSyncError(true)
-      }
-      // Background poll failed — silently ignore, try again next cycle
+      if (!isBackground) setSyncError(true)
     } finally {
       if (!isBackground) setSyncing(false)
     }
   }, [])
 
-  // Initial sync on mount — silent because we already show cached data
-  useEffect(() => {
-    syncItems(true)
-  }, [syncItems])
+  useEffect(() => { syncItems(true) }, [syncItems])
 
-  // Background poll every 10 seconds — fully silent, never affects UI
   useEffect(() => {
     const interval = setInterval(() => syncItems(true), 10000)
     return () => clearInterval(interval)
@@ -107,18 +96,21 @@ function Dashboard({ darkMode }) {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const deleteItem = useCallback(async (id) => {
-    const prev = items
-    setItems(p => p.filter(item => item.id !== id))
+    const prev    = itemsRef.current
+    const updated = prev.filter(item => item.id !== id)
+    setItems(updated)
+    saveCache(updated)
     try {
       await apiDelete(id)
-      saveCache(items.filter(item => item.id !== id))
     } catch {
       setItems(prev)
+      saveCache(prev)
     }
-  }, [items])
+  }, [])
 
   const resolveItem = useCallback(async (id) => {
-    const updated = items.map(item =>
+    const prev    = itemsRef.current
+    const updated = prev.map(item =>
       item.id === id ? { ...item, status: "Resolved" } : item
     )
     setItems(updated)
@@ -126,12 +118,14 @@ function Dashboard({ darkMode }) {
     try {
       await apiResolve(id)
     } catch {
-      syncItems(true)
+      setItems(prev)
+      saveCache(prev)
     }
-  }, [items, syncItems])
+  }, [])
 
   const editItem = useCallback(async (updatedItem) => {
-    const updated = items.map(item =>
+    const prev    = itemsRef.current
+    const updated = prev.map(item =>
       item.id === updatedItem.id ? updatedItem : item
     )
     setItems(updated)
@@ -139,9 +133,10 @@ function Dashboard({ darkMode }) {
     try {
       await apiUpdate(updatedItem)
     } catch {
-      syncItems(true)
+      setItems(prev)
+      saveCache(prev)
     }
-  }, [items, syncItems])
+  }, [])
 
   // ── Filtering + Sorting ───────────────────────────────────────────────────
   const filteredItems = useMemo(() => {
@@ -187,7 +182,6 @@ function Dashboard({ darkMode }) {
 
         maxScore += 2
         if (namesAreRelated(lost.name, found.name)) score += 2
-
         maxScore += 1
         if (locationsMatch(lost.location, found.location)) score += 1
 
@@ -195,12 +189,10 @@ function Dashboard({ darkMode }) {
           maxScore += 1
           if (norm(lost.category) === norm(found.category)) score += 1
         }
-
         if (lost.description && found.description) {
           maxScore += 1
           if (sharedKeywordCount(lost.description, found.description) >= 1) score += 1
         }
-
         if (lost.image && found.image) {
           maxScore += 2
           try {
@@ -215,10 +207,7 @@ function Dashboard({ darkMode }) {
         }
 
         if (maxScore > 0 && score >= maxScore * 0.60) {
-          results.push({
-            lost, found,
-            confidence: Math.round((score / maxScore) * 100)
-          })
+          results.push({ lost, found, confidence: Math.round((score / maxScore) * 100) })
         }
       }
     }
@@ -250,7 +239,6 @@ function Dashboard({ darkMode }) {
     cardBg:  darkMode ? "#2d2b55" : "#f9fafb",
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
       {editingItem && (
@@ -282,7 +270,7 @@ function Dashboard({ darkMode }) {
             Smart Lost & Found System
           </p>
 
-          {/* Subtle sync indicator — small dot, not a big banner */}
+          {/* Live indicator */}
           <div style={{
             display: "flex", alignItems: "center",
             justifyContent: "center", gap: "6px",
@@ -292,15 +280,10 @@ function Dashboard({ darkMode }) {
             <div style={{
               width: "7px", height: "7px", borderRadius: "50%",
               background: syncError ? "#ef4444" : "#10b981",
-              boxShadow: syncError
-                ? "0 0 6px #ef4444"
-                : "0 0 6px #10b981",
-              animation: syncing ? "pulse 1s infinite" : "none"
+              boxShadow: syncError ? "0 0 6px #ef4444" : "0 0 6px #10b981"
             }} />
-            {syncError
-              ? "Backend offline — showing cached data"
-              : syncing ? "Syncing..." : "Live"
-            }
+            {syncError ? "Backend offline — showing cached data"
+              : syncing ? "Syncing..." : "Live"}
           </div>
 
           {aiLoading && (
@@ -379,7 +362,8 @@ function Dashboard({ darkMode }) {
               border: `1px solid ${t.border}`,
               background: darkMode ? "#2d2b55" : "white",
               color: darkMode ? "#e2e8f0" : "#333",
-              fontSize: "14px", fontWeight: "500", cursor: "pointer",
+              fontSize: "14px", fontWeight: "500",
+              cursor: "pointer",
               boxShadow: "0 4px 10px rgba(0,0,0,0.06)"
             }}
           >

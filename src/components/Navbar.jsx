@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom"
+import logo from "../assets/logo.svg"
 
 function Navbar({ darkMode, setDarkMode }) {
   const location = useLocation()
   const isActive = (path) => location.pathname === path
 
-  const navBg    = darkMode ? "#1e1b4b" : "white"
+  const navBg     = darkMode ? "#1e1b4b" : "white"
   const textColor = darkMode ? "#e2e8f0" : "#1e1b4b"
 
   const linkStyle = (path) => ({
@@ -26,7 +27,7 @@ function Navbar({ darkMode, setDarkMode }) {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      padding: "12px 20px",
+      padding: "10px 20px",
       background: navBg,
       boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
       borderRadius: "14px",
@@ -37,12 +38,18 @@ function Navbar({ darkMode, setDarkMode }) {
     }}>
 
       {/* BRAND */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <span style={{ fontSize: "22px" }}>🔎</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <img
+          src={logo}
+          alt="Traceback Logo"
+          style={{ width: "38px", height: "38px" }}
+        />
         <h2 style={{
-          margin: 0, color: textColor,
+          margin: 0,
+          color: textColor,
           fontSize: "clamp(16px, 3vw, 20px)",
-          fontWeight: "800"
+          fontWeight: "800",
+          letterSpacing: "0.3px"
         }}>
           Traceback
         </h2>
@@ -69,7 +76,6 @@ function Navbar({ darkMode, setDarkMode }) {
           {darkMode ? "☀️" : "🌙"}
         </button>
       </div>
-
     </div>
   )
 }

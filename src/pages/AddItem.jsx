@@ -1,11 +1,11 @@
-import ItemForm   from "../components/ItemForm.jsx"
+import ItemForm from "../components/ItemForm.jsx"
 import { useNavigate } from "react-router-dom"
-import { createItem }  from "../utils/api.js"
-import { useState }    from "react"
+import { createItem } from "../utils/api.js"
+import { useState } from "react"
 
 function AddItem() {
-  const navigate          = useNavigate()
-  const [error, setError] = useState("")
+  const navigate            = useNavigate()
+  const [error,  setError]  = useState("")
   const [saving, setSaving] = useState(false)
 
   const addItem = async (item) => {
@@ -15,7 +15,8 @@ function AddItem() {
       await createItem(item)
       navigate("/")
     } catch (err) {
-      setError("Failed to save item. Make sure the server is running.")
+      // Show the actual error so we know exactly what failed
+      setError(err.message || "Failed to save item.")
     } finally {
       setSaving(false)
     }
