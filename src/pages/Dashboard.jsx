@@ -1,14 +1,19 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
-import ItemCard    from "../components/ItemCard.jsx"
-import SearchBar   from "../components/SearchBar.jsx"
+import ItemCard      from "../components/ItemCard.jsx"
+import SearchBar     from "../components/SearchBar.jsx"
 import FilterButtons from "../components/FilterButtons.jsx"
-import Stats       from "../components/Stats.jsx"
-import EditModal   from "../components/EditModal.jsx"
-import { Link }    from "react-router-dom"
+import Stats         from "../components/Stats.jsx"
+import EditModal     from "../components/EditModal.jsx"
+import { Link }      from "react-router-dom"
 import { detectObject } from "../utils/imageMatcher"
-import { loadItems, saveItems } from "../utils/storage.js"
+import {
+  fetchItems,
+  deleteItem  as apiDelete,
+  resolveItem as apiResolve,
+  updateItem  as apiUpdate
+} from "../utils/api.js"
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
 const norm = (s = "") => s.toLowerCase().trim().replace(/\s+/g, " ")
 
 const locationsMatch = (a, b) => {
@@ -38,39 +43,107 @@ const namesAreRelated = (a, b) => {
   return sharedKeywordCount(a, b) >= 1
 }
 
-// ─── component ──────────────────────────────────────────────────────────────
+const CACHE_KEY = "traceback_items_cache"
+
+const loadCache = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY)
+    return cached ? JSON.parse(cached) : []
+  } catch { return [] }
+}
+
+const saveCache = (items) => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(items))
+  } catch {}
+}
+
+// ─── component ────────────────────────────────────────────────────────────────
 function Dashboard({ darkMode }) {
-  const [items,          setItems]          = useState(loadItems)
+  // Start with cached data immediately — no loading screen
+  const [items,          setItems]          = useState(loadCache)
+  const [syncing,        setSyncing]        = useState(false)
+  const [syncError,      setSyncError]      = useState(false)
   const [search,         setSearch]         = useState("")
   const [filter,         setFilter]         = useState("All")
   const [sortBy,         setSortBy]         = useState("newest")
   const [showMatchAlert, setShowMatchAlert] = useState(true)
   const [matches,        setMatches]        = useState([])
   const [aiLoading,      setAiLoading]      = useState(false)
-  const [editingItem,    setEditingItem]     = useState(null)
+  const [editingItem,    setEditingItem]    = useState(null)
 
   const detectedCache = useRef({})
 
-  useEffect(() => { saveItems(items) }, [items])
-
-  // ── Actions ──────────────────────────────────────────────────────────────
-  const deleteItem = useCallback((id) => {
-    setItems(prev => prev.filter(item => item.id !== id))
+  // ── Sync from backend silently ────────────────────────────────────────────
+  const syncItems = useCallback(async (isBackground = false) => {
+    // For background polls — never show any error, never block UI
+    if (!isBackground) setSyncing(true)
+    try {
+      const data = await fetchItems()
+      setItems(data)
+      saveCache(data) // update local cache with fresh data
+      setSyncError(false)
+    } catch {
+      if (!isBackground) {
+        // Only show error on the initial load, not on background polls
+        setSyncError(true)
+      }
+      // Background poll failed — silently ignore, try again next cycle
+    } finally {
+      if (!isBackground) setSyncing(false)
+    }
   }, [])
 
-  const resolveItem = useCallback((id) => {
-    setItems(prev =>
-      prev.map(item => item.id === id ? { ...item, status: "Resolved" } : item)
+  // Initial sync on mount — silent because we already show cached data
+  useEffect(() => {
+    syncItems(true)
+  }, [syncItems])
+
+  // Background poll every 10 seconds — fully silent, never affects UI
+  useEffect(() => {
+    const interval = setInterval(() => syncItems(true), 10000)
+    return () => clearInterval(interval)
+  }, [syncItems])
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const deleteItem = useCallback(async (id) => {
+    const prev = items
+    setItems(p => p.filter(item => item.id !== id))
+    try {
+      await apiDelete(id)
+      saveCache(items.filter(item => item.id !== id))
+    } catch {
+      setItems(prev)
+    }
+  }, [items])
+
+  const resolveItem = useCallback(async (id) => {
+    const updated = items.map(item =>
+      item.id === id ? { ...item, status: "Resolved" } : item
     )
-  }, [])
+    setItems(updated)
+    saveCache(updated)
+    try {
+      await apiResolve(id)
+    } catch {
+      syncItems(true)
+    }
+  }, [items, syncItems])
 
-  const editItem = useCallback((updatedItem) => {
-    setItems(prev =>
-      prev.map(item => item.id === updatedItem.id ? updatedItem : item)
+  const editItem = useCallback(async (updatedItem) => {
+    const updated = items.map(item =>
+      item.id === updatedItem.id ? updatedItem : item
     )
-  }, [])
+    setItems(updated)
+    saveCache(updated)
+    try {
+      await apiUpdate(updatedItem)
+    } catch {
+      syncItems(true)
+    }
+  }, [items, syncItems])
 
-  // ── Filtering + Sorting ──────────────────────────────────────────────────
+  // ── Filtering + Sorting ───────────────────────────────────────────────────
   const filteredItems = useMemo(() => {
     return items
       .filter(item => {
@@ -84,8 +157,8 @@ function Dashboard({ darkMode }) {
         return matchesSearch && matchesFilter
       })
       .sort((a, b) => {
-        const aT = a.createdAt || a.id
-        const bT = b.createdAt || b.id
+        const aT = a.createdAt || 0
+        const bT = b.createdAt || 0
         if (sortBy === "newest") return bT - aT
         if (sortBy === "oldest") return aT - bT
         if (sortBy === "az")     return norm(a.name).localeCompare(norm(b.name))
@@ -94,7 +167,7 @@ function Dashboard({ darkMode }) {
       })
   }, [items, search, filter, sortBy])
 
-  // ── AI Matching ──────────────────────────────────────────────────────────
+  // ── AI Matching ───────────────────────────────────────────────────────────
   const findMatchesWithAI = useCallback(async (currentItems) => {
     const lostItems  = currentItems.filter(i => i.status === "Lost")
     const foundItems = currentItems.filter(i => i.status === "Found")
@@ -105,7 +178,6 @@ function Dashboard({ darkMode }) {
       const candidates = foundItems.filter(f =>
         locationsMatch(f.location, lost.location)
       )
-
       for (const found of candidates) {
         const pairKey = [lost.id, found.id].sort().join("|")
         if (seenPairs.has(pairKey)) continue
@@ -139,11 +211,10 @@ function Dashboard({ darkMode }) {
             const lObj = detectedCache.current[lost.id]
             const fObj = detectedCache.current[found.id]
             if (lObj && fObj && lObj !== "unknown" && lObj === fObj) score += 2
-          } catch { /* skip image score silently */ }
+          } catch {}
         }
 
-        const threshold = maxScore * 0.60
-        if (maxScore > 0 && score >= threshold) {
+        if (maxScore > 0 && score >= maxScore * 0.60) {
           results.push({
             lost, found,
             confidence: Math.round((score / maxScore) * 100)
@@ -151,7 +222,6 @@ function Dashboard({ darkMode }) {
         }
       }
     }
-
     return results.sort((a, b) => b.confidence - a.confidence)
   }, [])
 
@@ -165,11 +235,8 @@ function Dashboard({ darkMode }) {
           setMatches(result)
           if (result.length > 0) setShowMatchAlert(true)
         }
-      } catch (err) {
-        console.error("AI matching failed:", err)
-      } finally {
-        if (!cancelled) setAiLoading(false)
-      }
+      } catch {}
+      finally { if (!cancelled) setAiLoading(false) }
     }, 800)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [items, findMatchesWithAI])
@@ -186,7 +253,6 @@ function Dashboard({ darkMode }) {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* EDIT MODAL */}
       {editingItem && (
         <EditModal
           item={editingItem}
@@ -215,9 +281,31 @@ function Dashboard({ darkMode }) {
           <p style={{ fontSize: "clamp(13px, 2vw, 16px)", color: t.subtext, margin: 0 }}>
             Smart Lost & Found System
           </p>
+
+          {/* Subtle sync indicator — small dot, not a big banner */}
+          <div style={{
+            display: "flex", alignItems: "center",
+            justifyContent: "center", gap: "6px",
+            marginTop: "8px", fontSize: "12px",
+            color: syncError ? "#ef4444" : "#10b981"
+          }}>
+            <div style={{
+              width: "7px", height: "7px", borderRadius: "50%",
+              background: syncError ? "#ef4444" : "#10b981",
+              boxShadow: syncError
+                ? "0 0 6px #ef4444"
+                : "0 0 6px #10b981",
+              animation: syncing ? "pulse 1s infinite" : "none"
+            }} />
+            {syncError
+              ? "Backend offline — showing cached data"
+              : syncing ? "Syncing..." : "Live"
+            }
+          </div>
+
           {aiLoading && (
-            <p style={{ fontSize: "13px", color: "#6366f1", marginTop: "8px", fontWeight: "500" }}>
-              🤖 AI is scanning for matches...
+            <p style={{ fontSize: "13px", color: "#6366f1", marginTop: "6px", fontWeight: "500" }}>
+              🤖 AI scanning for matches...
             </p>
           )}
         </div>
@@ -232,8 +320,8 @@ function Dashboard({ darkMode }) {
               border: "1px solid #6366f1",
               padding: "11px 16px", borderRadius: "10px",
               marginBottom: "10px",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              flexWrap: "wrap", gap: "8px"
+              display: "flex", justifyContent: "space-between",
+              alignItems: "center", flexWrap: "wrap", gap: "8px"
             }}>
               <span style={{ fontWeight: "600", color: "#4f46e5", fontSize: "14px" }}>
                 🔔 AI found {matches.length} possible match{matches.length > 1 ? "es" : ""}
@@ -263,8 +351,7 @@ function Dashboard({ darkMode }) {
                   fontSize: "13px", color: "#1e1b4b"
                 }}>
                   🔍 Lost <b>"{match.lost.name}"</b> at <b>{match.lost.location}</b>
-                  {" "}may match Found <b>"{match.found.name}"</b>
-                  {" "}— Confidence:{" "}
+                  {" "}may match Found <b>"{match.found.name}"</b> — Confidence:{" "}
                   <b style={{
                     color: match.confidence >= 80 ? "#16a34a"
                          : match.confidence >= 60 ? "#d97706" : "#dc2626"
@@ -277,14 +364,13 @@ function Dashboard({ darkMode }) {
           </>
         )}
 
-        {/* SEARCH + SORT ROW */}
+        {/* SEARCH + SORT */}
         <div style={{
           display: "flex", flexWrap: "wrap",
           gap: "12px", alignItems: "center",
           justifyContent: "space-between"
         }}>
           <SearchBar search={search} setSearch={setSearch} darkMode={darkMode} />
-
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
@@ -293,8 +379,7 @@ function Dashboard({ darkMode }) {
               border: `1px solid ${t.border}`,
               background: darkMode ? "#2d2b55" : "white",
               color: darkMode ? "#e2e8f0" : "#333",
-              fontSize: "14px", fontWeight: "500",
-              cursor: "pointer",
+              fontSize: "14px", fontWeight: "500", cursor: "pointer",
               boxShadow: "0 4px 10px rgba(0,0,0,0.06)"
             }}
           >
@@ -311,13 +396,12 @@ function Dashboard({ darkMode }) {
           Showing {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}
         </p>
 
-        {/* ITEMS GRID */}
+        {/* GRID */}
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(min(250px, 100%), 1fr))",
           gap: "20px"
         }}>
-
           {items.length === 0 ? (
             <div style={{
               gridColumn: "1 / -1", textAlign: "center",
@@ -365,7 +449,6 @@ function Dashboard({ darkMode }) {
                 />
               ))}
 
-              {/* ADD ITEM CARD */}
               <Link to="/add" style={{ textDecoration: "none" }}>
                 <div
                   style={{
@@ -399,6 +482,13 @@ function Dashboard({ darkMode }) {
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `}</style>
     </>
   )
 }
