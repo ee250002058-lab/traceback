@@ -1,0 +1,8 @@
+.itemIcon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.itemIcon:hover {
+  transform: scale(1.3) rotate(10deg);
+}
