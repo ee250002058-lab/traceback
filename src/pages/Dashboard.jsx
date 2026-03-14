@@ -13,49 +13,27 @@ import {
   updateItem  as apiUpdate
 } from "../utils/api.js"
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ────────────────────────────────────────────────────────────────────
 const norm = (s = "") => s.toLowerCase().trim().replace(/\s+/g, " ")
-
-const locationsMatch = (a, b) => {
-  const na = norm(a), nb = norm(b)
+const locMatch = (a, b) => {
+  const [na, nb] = [norm(a), norm(b)]
   if (!na || !nb) return false
   return na === nb || na.includes(nb) || nb.includes(na)
 }
-
-const STOP_WORDS = new Set([
-  "a","an","the","and","or","is","it","in","on","at","to","of","for",
-  "was","were","has","have","with","this","that","my","i","me","been"
-])
-const keywords = (s = "") =>
-  norm(s).split(" ").filter(w => w.length > 2 && !STOP_WORDS.has(w))
-
-const sharedKeywordCount = (a, b) => {
-  const sa = new Set(keywords(a))
-  const sb = new Set(keywords(b))
-  return [...sa].filter(w => sb.has(w)).length
-}
-
-const namesAreRelated = (a, b) => {
-  const na = norm(a), nb = norm(b)
+const STOP = new Set(["a","an","the","and","or","is","it","in","on","at","to","of","for","was","were","has","have","with","this","that","my","i","me","been"])
+const kw   = (s = "") => norm(s).split(" ").filter(w => w.length > 2 && !STOP.has(w))
+const shKw  = (a, b)  => { const sa = new Set(kw(a)), sb = new Set(kw(b)); return [...sa].filter(w => sb.has(w)).length }
+const nameRel = (a, b) => {
+  const [na, nb] = [norm(a), norm(b)]
   if (!na || !nb) return false
-  if (na === nb) return true
-  if (na.includes(nb) || nb.includes(na)) return true
-  return sharedKeywordCount(a, b) >= 1
+  return na === nb || na.includes(nb) || nb.includes(na) || shKw(a, b) >= 1
 }
+const CACHE = "traceback_items_cache"
+const loadCache = () => { try { const c = localStorage.getItem(CACHE); return c ? JSON.parse(c) : [] } catch { return [] } }
+const saveCache = (d) => { try { localStorage.setItem(CACHE, JSON.stringify(d)) } catch {} }
 
-const CACHE_KEY = "traceback_items_cache"
-const loadCache = () => {
-  try {
-    const c = localStorage.getItem(CACHE_KEY)
-    return c ? JSON.parse(c) : []
-  } catch { return [] }
-}
-const saveCache = (items) => {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(items)) } catch {}
-}
-
-// ─── component ────────────────────────────────────────────────────────────────
-function Dashboard({ darkMode }) {
+// ── component ──────────────────────────────────────────────────────────────────
+function Dashboard() {
   const [items,          setItems]          = useState(loadCache)
   const [syncing,        setSyncing]        = useState(false)
   const [syncError,      setSyncError]      = useState(false)
@@ -67,178 +45,116 @@ function Dashboard({ darkMode }) {
   const [aiLoading,      setAiLoading]      = useState(false)
   const [editingItem,    setEditingItem]    = useState(null)
 
-  // Use refs to avoid stale closures in callbacks
-  const detectedCache = useRef({})
-  const itemsRef      = useRef(items)
+  const detCache = useRef({})
+  const itemsRef = useRef(items)
   useEffect(() => { itemsRef.current = items }, [items])
 
   // ── Sync ──────────────────────────────────────────────────────────────────
-  const syncItems = useCallback(async (isBackground = false) => {
-    if (!isBackground) setSyncing(true)
+  const syncItems = useCallback(async (silent = false) => {
+    if (!silent) setSyncing(true)
     try {
       const data = await fetchItems()
-      setItems(data)
-      saveCache(data)
-      setSyncError(false)
+      setItems(data); saveCache(data); setSyncError(false)
     } catch {
-      if (!isBackground) setSyncError(true)
+      if (!silent) setSyncError(true)
     } finally {
-      if (!isBackground) setSyncing(false)
+      if (!silent) setSyncing(false)
     }
   }, [])
 
   useEffect(() => { syncItems(true) }, [syncItems])
-
   useEffect(() => {
-    const interval = setInterval(() => syncItems(true), 10000)
-    return () => clearInterval(interval)
+    const t = setInterval(() => syncItems(true), 10000)
+    return () => clearInterval(t)
   }, [syncItems])
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const deleteItem = useCallback(async (id) => {
-    const prev    = itemsRef.current
-    const updated = prev.filter(item => item.id !== id)
-    setItems(updated)
-    saveCache(updated)
-    try {
-      await apiDelete(id)
-    } catch {
-      setItems(prev)
-      saveCache(prev)
-    }
+    const prev = itemsRef.current
+    const next = prev.filter(i => i.id !== id)
+    setItems(next); saveCache(next)
+    try { await apiDelete(id) } catch { setItems(prev); saveCache(prev) }
   }, [])
 
   const resolveItem = useCallback(async (id) => {
-    const prev    = itemsRef.current
-    const updated = prev.map(item =>
-      item.id === id ? { ...item, status: "Resolved" } : item
-    )
-    setItems(updated)
-    saveCache(updated)
-    try {
-      await apiResolve(id)
-    } catch {
-      setItems(prev)
-      saveCache(prev)
-    }
+    const prev = itemsRef.current
+    const next = prev.map(i => i.id === id ? { ...i, status: "Resolved" } : i)
+    setItems(next); saveCache(next)
+    try { await apiResolve(id) } catch { setItems(prev); saveCache(prev) }
   }, [])
 
-  const editItem = useCallback(async (updatedItem) => {
-    const prev    = itemsRef.current
-    const updated = prev.map(item =>
-      item.id === updatedItem.id ? updatedItem : item
-    )
-    setItems(updated)
-    saveCache(updated)
-    try {
-      await apiUpdate(updatedItem)
-    } catch {
-      setItems(prev)
-      saveCache(prev)
-    }
+  const editItem = useCallback(async (updated) => {
+    const prev = itemsRef.current
+    const next = prev.map(i => i.id === updated.id ? updated : i)
+    setItems(next); saveCache(next)
+    try { await apiUpdate(updated) } catch { setItems(prev); saveCache(prev) }
   }, [])
 
   // ── Filtering + Sorting ───────────────────────────────────────────────────
-  const filteredItems = useMemo(() => {
-    return items
-      .filter(item => {
-        const q = norm(search)
-        const matchesSearch =
-          norm(item.name).includes(q)        ||
-          norm(item.location).includes(q)    ||
-          norm(item.category).includes(q)    ||
-          norm(item.description).includes(q)
-        const matchesFilter = filter === "All" || item.status === filter
-        return matchesSearch && matchesFilter
-      })
-      .sort((a, b) => {
-        const aT = a.createdAt || 0
-        const bT = b.createdAt || 0
-        if (sortBy === "newest") return bT - aT
-        if (sortBy === "oldest") return aT - bT
-        if (sortBy === "az")     return norm(a.name).localeCompare(norm(b.name))
-        if (sortBy === "za")     return norm(b.name).localeCompare(norm(a.name))
-        return 0
-      })
-  }, [items, search, filter, sortBy])
+  const filteredItems = useMemo(() => items
+    .filter(item => {
+      const q = norm(search)
+      return (
+        norm(item.name).includes(q)        ||
+        norm(item.location).includes(q)    ||
+        norm(item.category).includes(q)    ||
+        norm(item.description).includes(q)
+      ) && (filter === "All" || item.status === filter)
+    })
+    .sort((a, b) => {
+      const [aT, bT] = [a.createdAt || 0, b.createdAt || 0]
+      if (sortBy === "newest") return bT - aT
+      if (sortBy === "oldest") return aT - bT
+      if (sortBy === "az")     return norm(a.name).localeCompare(norm(b.name))
+      if (sortBy === "za")     return norm(b.name).localeCompare(norm(a.name))
+      return 0
+    }), [items, search, filter, sortBy])
 
   // ── AI Matching ───────────────────────────────────────────────────────────
-  const findMatchesWithAI = useCallback(async (currentItems) => {
-    const lostItems  = currentItems.filter(i => i.status === "Lost")
-    const foundItems = currentItems.filter(i => i.status === "Found")
-    const results    = []
-    const seenPairs  = new Set()
+  const findMatchesWithAI = useCallback(async (cur) => {
+    const lost = cur.filter(i => i.status === "Lost")
+    const found = cur.filter(i => i.status === "Found")
+    const results = []; const seen = new Set()
 
-    for (const lost of lostItems) {
-      const candidates = foundItems.filter(f =>
-        locationsMatch(f.location, lost.location)
-      )
-      for (const found of candidates) {
-        const pairKey = [lost.id, found.id].sort().join("|")
-        if (seenPairs.has(pairKey)) continue
-        seenPairs.add(pairKey)
-
-        let score = 0, maxScore = 0
-
-        maxScore += 2
-        if (namesAreRelated(lost.name, found.name)) score += 2
-        maxScore += 1
-        if (locationsMatch(lost.location, found.location)) score += 1
-
-        if (lost.category && found.category) {
-          maxScore += 1
-          if (norm(lost.category) === norm(found.category)) score += 1
-        }
-        if (lost.description && found.description) {
-          maxScore += 1
-          if (sharedKeywordCount(lost.description, found.description) >= 1) score += 1
-        }
-        if (lost.image && found.image) {
-          maxScore += 2
+    for (const l of lost) {
+      for (const f of found.filter(f => locMatch(f.location, l.location))) {
+        const key = [l.id, f.id].sort().join("|")
+        if (seen.has(key)) continue; seen.add(key)
+        let s = 0, mx = 0
+        mx += 2; if (nameRel(l.name, f.name)) s += 2
+        mx += 1; if (locMatch(l.location, f.location)) s += 1
+        if (l.category && f.category) { mx += 1; if (norm(l.category) === norm(f.category)) s += 1 }
+        if (l.description && f.description) { mx += 1; if (shKw(l.description, f.description) >= 1) s += 1 }
+        if (l.image && f.image) {
+          mx += 2
           try {
-            if (!detectedCache.current[lost.id])
-              detectedCache.current[lost.id]  = await detectObject(lost.image)
-            if (!detectedCache.current[found.id])
-              detectedCache.current[found.id] = await detectObject(found.image)
-            const lObj = detectedCache.current[lost.id]
-            const fObj = detectedCache.current[found.id]
-            if (lObj && fObj && lObj !== "unknown" && lObj === fObj) score += 2
+            if (!detCache.current[l.id]) detCache.current[l.id] = await detectObject(l.image)
+            if (!detCache.current[f.id]) detCache.current[f.id] = await detectObject(f.image)
+            const [lo, fo] = [detCache.current[l.id], detCache.current[f.id]]
+            if (lo && fo && lo !== "unknown" && lo === fo) s += 2
           } catch {}
         }
-
-        if (maxScore > 0 && score >= maxScore * 0.60) {
-          results.push({ lost, found, confidence: Math.round((score / maxScore) * 100) })
-        }
+        if (mx > 0 && s >= mx * 0.6)
+          results.push({ lost: l, found: f, confidence: Math.round(s / mx * 100) })
       }
     }
     return results.sort((a, b) => b.confidence - a.confidence)
   }, [])
 
   useEffect(() => {
-    let cancelled = false
-    const timer = setTimeout(async () => {
+    let cancel = false
+    const t = setTimeout(async () => {
       setAiLoading(true)
       try {
-        const result = await findMatchesWithAI(items)
-        if (!cancelled) {
-          setMatches(result)
-          if (result.length > 0) setShowMatchAlert(true)
-        }
+        const r = await findMatchesWithAI(items)
+        if (!cancel) { setMatches(r); if (r.length > 0) setShowMatchAlert(true) }
       } catch {}
-      finally { if (!cancelled) setAiLoading(false) }
+      finally { if (!cancel) setAiLoading(false) }
     }, 800)
-    return () => { cancelled = true; clearTimeout(timer) }
+    return () => { cancel = true; clearTimeout(t) }
   }, [items, findMatchesWithAI])
 
-  // ── Theme ─────────────────────────────────────────────────────────────────
-  const t = {
-    bg:      darkMode ? "#1a1a2e" : "white",
-    text:    darkMode ? "#e2e8f0" : "#1e1b4b",
-    subtext: darkMode ? "#94a3b8" : "#666",
-    border:  darkMode ? "#2d2b55" : "#e5e7eb",
-    cardBg:  darkMode ? "#2d2b55" : "#f9fafb",
-  }
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
       {editingItem && (
@@ -249,228 +165,256 @@ function Dashboard({ darkMode }) {
         />
       )}
 
+      {/* Page Header */}
       <div style={{
-        maxWidth: "1200px", margin: "auto",
-        background: t.bg,
-        padding: "clamp(20px, 4vw, 40px)",
-        borderRadius: "18px",
-        boxShadow: "0 15px 40px rgba(0,0,0,0.12)",
-        transition: "background 0.3s"
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: "12px",
+        marginBottom: "24px"
       }}>
-
-        {/* HEADER */}
-        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+        <div>
           <h1 style={{
-            fontSize: "clamp(28px, 6vw, 42px)",
-            fontWeight: "800", color: t.text, margin: "0 0 6px"
+            fontFamily: "'Syne', sans-serif",
+            fontSize: "clamp(22px, 5vw, 32px)",
+            fontWeight: "800",
+            color: "var(--text-1)",
+            letterSpacing: "-0.5px",
+            lineHeight: 1.1,
+            margin: "0 0 4px"
           }}>
-            🔎 Traceback
+            Lost & Found
           </h1>
-          <p style={{ fontSize: "clamp(13px, 2vw, 16px)", color: t.subtext, margin: 0 }}>
-            Smart Lost & Found System
-          </p>
-
-          {/* Live indicator */}
-          <div style={{
-            display: "flex", alignItems: "center",
-            justifyContent: "center", gap: "6px",
-            marginTop: "8px", fontSize: "12px",
-            color: syncError ? "#ef4444" : "#10b981"
-          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <div style={{
-              width: "7px", height: "7px", borderRadius: "50%",
-              background: syncError ? "#ef4444" : "#10b981",
-              boxShadow: syncError ? "0 0 6px #ef4444" : "0 0 6px #10b981"
+              width: "6px", height: "6px", borderRadius: "50%",
+              background: syncError ? "var(--lost)" : "var(--found)",
+              animation: "pulse-dot 2s infinite"
             }} />
-            {syncError ? "Backend offline — showing cached data"
-              : syncing ? "Syncing..." : "Live"}
+            <span style={{ fontSize: "12px", color: "var(--text-3)", fontWeight: "500" }}>
+              {syncError ? "Offline · cached data" : syncing ? "Syncing..." : "Live"}
+            </span>
+            {aiLoading && (
+              <span style={{ fontSize: "12px", color: "var(--primary)", marginLeft: "6px" }}>
+                · 🤖 Scanning...
+              </span>
+            )}
+          </div>
+        </div>
+
+        <Link to="/add" style={{ textDecoration: "none" }}>
+          <button style={{
+            background: "var(--primary)",
+            color: "white", border: "none",
+            padding: "10px 18px", borderRadius: "var(--r-md)",
+            fontSize: "13px", fontWeight: "700",
+            cursor: "pointer",
+            display: "flex", alignItems: "center", gap: "6px",
+            transition: "background 0.15s",
+            boxShadow: "0 2px 8px rgba(79,70,229,0.3)"
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--primary-hover)"}
+            onMouseLeave={e => e.currentTarget.style.background = "var(--primary)"}
+          >
+            + Report Item
+          </button>
+        </Link>
+      </div>
+
+      <Stats items={items} />
+
+      {/* AI Match Banner */}
+      {matches.length > 0 && showMatchAlert && (
+        <div style={{
+          background: "var(--surface)",
+          border: "1px solid var(--primary-muted)",
+          borderRadius: "var(--r-lg)",
+          padding: "14px 18px",
+          marginBottom: "18px",
+          boxShadow: "var(--shadow-sm)"
+        }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between",
+            alignItems: "center", marginBottom: "10px"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{
+                width: "26px", height: "26px",
+                background: "var(--primary-light)",
+                borderRadius: "var(--r-sm)",
+                display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: "13px"
+              }}>⚡</div>
+              <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>
+                {matches.length} Possible Match{matches.length > 1 ? "es" : ""}
+              </span>
+            </div>
+            <button onClick={() => setShowMatchAlert(false)} style={{
+              background: "none", border: "none",
+              cursor: "pointer", color: "var(--text-3)", fontSize: "13px"
+            }}>✕</button>
           </div>
 
-          {aiLoading && (
-            <p style={{ fontSize: "13px", color: "#6366f1", marginTop: "6px", fontWeight: "500" }}>
-              🤖 AI scanning for matches...
-            </p>
-          )}
-        </div>
-
-        <Stats items={items} darkMode={darkMode} />
-
-        {/* AI MATCH BANNER */}
-        {matches.length > 0 && showMatchAlert && (
-          <>
-            <div style={{
-              background: darkMode ? "#1e1b4b" : "#eef2ff",
-              border: "1px solid #6366f1",
-              padding: "11px 16px", borderRadius: "10px",
-              marginBottom: "10px",
-              display: "flex", justifyContent: "space-between",
-              alignItems: "center", flexWrap: "wrap", gap: "8px"
+          {matches.map((m, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: "8px",
+              padding: "9px 12px",
+              background: "var(--surface-2)",
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--border)",
+              marginBottom: i < matches.length - 1 ? "6px" : "0"
             }}>
-              <span style={{ fontWeight: "600", color: "#4f46e5", fontSize: "14px" }}>
-                🔔 AI found {matches.length} possible match{matches.length > 1 ? "es" : ""}
+              <span style={{ fontSize: "12px", flex: 1, color: "var(--text-2)" }}>
+                Lost <strong style={{ color: "var(--text-1)" }}>"{m.lost.name}"</strong>
+                {" "}→ Found <strong style={{ color: "var(--text-1)" }}>"{m.found.name}"</strong>
+                {" "}at <strong style={{ color: "var(--text-1)" }}>{m.lost.location}</strong>
               </span>
-              <button
-                onClick={() => setShowMatchAlert(false)}
-                style={{
-                  border: "none", background: "transparent",
-                  cursor: "pointer", fontSize: "15px", color: "#6366f1"
-                }}
-              >✕</button>
+              <span style={{
+                fontSize: "10px", fontWeight: "700",
+                padding: "2px 7px", borderRadius: "20px",
+                background: m.confidence >= 80 ? "#ECFDF5" : m.confidence >= 60 ? "#FFFBEB" : "#FEF2F2",
+                color:      m.confidence >= 80 ? "#059669" : m.confidence >= 60 ? "#D97706" : "#DC2626"
+              }}>
+                {m.confidence}%
+              </span>
             </div>
+          ))}
+        </div>
+      )}
 
-            <div style={{
-              background: "linear-gradient(135deg, #fde68a, #fcd34d)",
-              padding: "16px 20px", marginBottom: "24px",
-              borderRadius: "12px", boxShadow: "0 4px 14px rgba(0,0,0,0.1)"
+      {/* Toolbar */}
+      <div style={{
+        display: "flex", gap: "8px",
+        alignItems: "center", flexWrap: "wrap",
+        justifyContent: "space-between",
+        marginBottom: "4px"
+      }}>
+        <SearchBar search={search} setSearch={setSearch} />
+
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          style={{
+            padding: "9px 12px",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--r-lg)",
+            fontSize: "13px", fontWeight: "600",
+            color: "var(--text-2)",
+            cursor: "pointer"
+          }}
+        >
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="az">A → Z</option>
+          <option value="za">Z → A</option>
+        </select>
+      </div>
+
+      <FilterButtons filter={filter} setFilter={setFilter} />
+
+      <p style={{
+        fontSize: "12px", color: "var(--text-3)",
+        fontWeight: "500", margin: "6px 0 16px"
+      }}>
+        {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}
+      </p>
+
+      {/* Grid */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(min(260px, 100%), 1fr))",
+        gap: "14px"
+      }}>
+
+        {items.length === 0 ? (
+          <div style={{
+            gridColumn: "1 / -1", textAlign: "center",
+            padding: "80px 20px"
+          }}>
+            <div style={{ fontSize: "52px", marginBottom: "20px" }}>📭</div>
+            <h3 style={{
+              fontFamily: "'Syne', sans-serif",
+              fontSize: "22px", fontWeight: "700",
+              color: "var(--text-1)", marginBottom: "8px"
+            }}>Nothing here yet</h3>
+            <p style={{
+              color: "var(--text-3)", fontSize: "14px", marginBottom: "28px"
             }}>
-              <h3 style={{ margin: "0 0 10px", fontSize: "15px", color: "#1e1b4b" }}>
-                ⚡ Possible Matches
-              </h3>
-              {matches.map((match, i) => (
-                <div key={i} style={{
-                  background: "rgba(255,255,255,0.5)",
-                  borderRadius: "8px", padding: "10px 14px",
-                  marginBottom: i < matches.length - 1 ? "8px" : "0",
-                  fontSize: "13px", color: "#1e1b4b"
-                }}>
-                  🔍 Lost <b>"{match.lost.name}"</b> at <b>{match.lost.location}</b>
-                  {" "}may match Found <b>"{match.found.name}"</b> — Confidence:{" "}
-                  <b style={{
-                    color: match.confidence >= 80 ? "#16a34a"
-                         : match.confidence >= 60 ? "#d97706" : "#dc2626"
-                  }}>
-                    {match.confidence}%
-                  </b>
-                </div>
-              ))}
-            </div>
+              Be the first to report a lost or found item on campus.
+            </p>
+            <Link to="/add" style={{
+              display: "inline-block",
+              background: "var(--primary)",
+              color: "white", textDecoration: "none",
+              padding: "11px 28px", borderRadius: "var(--r-md)",
+              fontWeight: "700", fontSize: "14px"
+            }}>
+              + Report an Item
+            </Link>
+          </div>
+
+        ) : filteredItems.length === 0 ? (
+          <div style={{
+            gridColumn: "1 / -1", textAlign: "center",
+            padding: "60px 20px"
+          }}>
+            <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔍</div>
+            <p style={{ color: "var(--text-3)", fontSize: "14px" }}>
+              No items match your search or filter.
+            </p>
+          </div>
+
+        ) : (
+          <>
+            {filteredItems.map(item => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                deleteItem={deleteItem}
+                resolveItem={resolveItem}
+                onEdit={setEditingItem}
+              />
+            ))}
+
+            {/* Add card */}
+            <Link to="/add" style={{ textDecoration: "none" }}>
+              <div
+                style={{
+                  background: "var(--surface)",
+                  border: "2px dashed var(--border)",
+                  borderRadius: "var(--r-lg)",
+                  minHeight: "180px",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  color: "var(--text-3)",
+                  cursor: "pointer",
+                  transition: "all 0.15s"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = "var(--primary-muted)"
+                  e.currentTarget.style.color = "var(--primary)"
+                  e.currentTarget.style.background = "var(--primary-light)"
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = "var(--border)"
+                  e.currentTarget.style.color = "var(--text-3)"
+                  e.currentTarget.style.background = "var(--surface)"
+                }}
+              >
+                <span style={{ fontSize: "24px", marginBottom: "6px" }}>+</span>
+                <span style={{ fontSize: "12px", fontWeight: "600" }}>Report Item</span>
+              </div>
+            </Link>
           </>
         )}
-
-        {/* SEARCH + SORT */}
-        <div style={{
-          display: "flex", flexWrap: "wrap",
-          gap: "12px", alignItems: "center",
-          justifyContent: "space-between"
-        }}>
-          <SearchBar search={search} setSearch={setSearch} darkMode={darkMode} />
-          <select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            style={{
-              padding: "10px 14px", borderRadius: "10px",
-              border: `1px solid ${t.border}`,
-              background: darkMode ? "#2d2b55" : "white",
-              color: darkMode ? "#e2e8f0" : "#333",
-              fontSize: "14px", fontWeight: "500",
-              cursor: "pointer",
-              boxShadow: "0 4px 10px rgba(0,0,0,0.06)"
-            }}
-          >
-            <option value="newest">🕐 Newest First</option>
-            <option value="oldest">🕑 Oldest First</option>
-            <option value="az">🔤 A → Z</option>
-            <option value="za">🔤 Z → A</option>
-          </select>
-        </div>
-
-        <FilterButtons filter={filter} setFilter={setFilter} darkMode={darkMode} />
-
-        <p style={{ color: t.subtext, fontSize: "13px", margin: "8px 0 16px" }}>
-          Showing {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}
-        </p>
-
-        {/* GRID */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(min(250px, 100%), 1fr))",
-          gap: "20px"
-        }}>
-          {items.length === 0 ? (
-            <div style={{
-              gridColumn: "1 / -1", textAlign: "center",
-              padding: "60px 20px", color: t.subtext
-            }}>
-              <div style={{ fontSize: "64px", marginBottom: "16px" }}>📭</div>
-              <h3 style={{ fontSize: "22px", color: t.text, margin: "0 0 8px" }}>
-                No items yet!
-              </h3>
-              <p style={{ fontSize: "15px", marginBottom: "24px" }}>
-                Be the first to report a lost or found item.
-              </p>
-              <Link to="/add" style={{
-                display: "inline-block",
-                background: "linear-gradient(135deg, #6366f1, #4f46e5)",
-                color: "white", textDecoration: "none",
-                padding: "13px 30px", borderRadius: "10px",
-                fontWeight: "700", fontSize: "15px",
-                boxShadow: "0 4px 14px rgba(99,102,241,0.35)"
-              }}>
-                ➕ Add Your First Item
-              </Link>
-            </div>
-
-          ) : filteredItems.length === 0 ? (
-            <div style={{
-              gridColumn: "1 / -1", textAlign: "center",
-              padding: "50px 20px", color: t.subtext
-            }}>
-              <div style={{ fontSize: "50px", marginBottom: "12px" }}>🔍</div>
-              <p style={{ fontSize: "15px" }}>
-                No items match your search. Try different keywords or filters.
-              </p>
-            </div>
-
-          ) : (
-            <>
-              {filteredItems.map(item => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  deleteItem={deleteItem}
-                  resolveItem={resolveItem}
-                  onEdit={setEditingItem}
-                />
-              ))}
-
-              <Link to="/add" style={{ textDecoration: "none" }}>
-                <div
-                  style={{
-                    background: t.cardBg, borderRadius: "14px",
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                    color: "#6366f1", cursor: "pointer",
-                    border: `2px dashed ${darkMode ? "#4f46e5" : "#c7d2fe"}`,
-                    minHeight: "220px", textAlign: "center",
-                    transition: "all 0.25s ease"
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = "translateY(-6px) scale(1.02)"
-                    e.currentTarget.style.boxShadow = "0 16px 32px rgba(0,0,0,0.14)"
-                    e.currentTarget.style.background = darkMode ? "#312e81" : "#eef2ff"
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = "translateY(0) scale(1)"
-                    e.currentTarget.style.boxShadow = "none"
-                    e.currentTarget.style.background = t.cardBg
-                  }}
-                >
-                  <div style={{ fontSize: "46px", marginBottom: "10px" }}>➕</div>
-                  <h3 style={{ margin: 0, fontSize: "16px" }}>Add Item</h3>
-                  <p style={{ fontSize: "12px", color: t.subtext, marginTop: "4px" }}>
-                    Report lost or found
-                  </p>
-                </div>
-              </Link>
-            </>
-          )}
-        </div>
       </div>
 
       <style>{`
-        @keyframes pulse {
+        @keyframes pulse-dot {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
+          50%       { opacity: 0.4; }
         }
       `}</style>
     </>

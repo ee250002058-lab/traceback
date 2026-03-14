@@ -1,36 +1,27 @@
-function FilterButtons({ filter, setFilter, darkMode }) {
+function FilterButtons({ filter, setFilter }) {
   const filters = [
-    { label: "📋 All",       value: "All",      activeColor: "#4f46e5" },
-    { label: "🔴 Lost",      value: "Lost",     activeColor: "#ef4444" },
-    { label: "🟢 Found",     value: "Found",    activeColor: "#10b981" },
-    { label: "✅ Resolved",  value: "Resolved", activeColor: "#6366f1" },
+    { label: "All",       value: "All",      color: "var(--primary)", bg: "var(--primary-light)" },
+    { label: "🔴 Lost",   value: "Lost",     color: "var(--lost)",    bg: "var(--lost-light)"    },
+    { label: "🟢 Found",  value: "Found",    color: "var(--found)",   bg: "var(--found-light)"   },
+    { label: "✅ Resolved",value: "Resolved", color: "var(--resolved)",bg: "var(--resolved-light)"},
   ]
 
   return (
-    <div style={{
-      display: "flex",
-      gap: "8px",
-      margin: "15px 0",
-      flexWrap: "wrap",
-      alignItems: "center"
-    }}>
-      {filters.map(({ label, value, activeColor }) => (
+    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "10px 0" }}>
+      {filters.map(({ label, value, color, bg }) => (
         <button
           key={value}
           onClick={() => setFilter(value)}
           style={{
-            padding: "8px 18px",
+            padding: "6px 14px",
             borderRadius: "20px",
-            border: "none",
-            cursor: "pointer",
-            fontWeight: "600",
+            border: filter === value ? "1px solid transparent" : "1px solid var(--border)",
+            background: filter === value ? bg : "var(--surface)",
+            color: filter === value ? color : "var(--text-2)",
             fontSize: "13px",
-            background: filter === value
-              ? activeColor
-              : (darkMode ? "#2d2b55" : "#f3f4f6"),
-            color: filter === value ? "white" : (darkMode ? "#94a3b8" : "#555"),
-            boxShadow: filter === value ? "0 4px 10px rgba(0,0,0,0.15)" : "none",
-            transition: "all 0.2s"
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "all 0.15s"
           }}
         >
           {label}

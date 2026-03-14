@@ -5,110 +5,86 @@ function Navbar({ darkMode, setDarkMode }) {
   const location = useLocation()
   const isActive = (path) => location.pathname === path
 
-  const navBg     = darkMode ? "#1e1b4b" : "white"
-  const textColor = darkMode ? "#e2e8f0" : "#1e1b4b"
-
-  const linkStyle = (path) => ({
-    textDecoration: "none",
-    color: isActive(path) ? "#6366f1" : (darkMode ? "#94a3b8" : "#555"),
-    fontWeight: isActive(path) ? "700" : "500",
-    fontSize: "15px",
-    padding: "7px 14px",
-    borderRadius: "8px",
-    background: isActive(path)
-      ? (darkMode ? "rgba(99,102,241,0.2)" : "#eef2ff")
-      : "transparent",
-    transition: "all 0.2s",
-    whiteSpace: "nowrap"
-  })
-
   return (
-    <div style={{
+    <nav style={{
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      padding: "10px 20px",
-      background: navBg,
-      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-      borderRadius: "14px",
-      marginBottom: "24px",
-      transition: "background 0.3s",
-      flexWrap: "wrap",
-      gap: "10px"
+      padding: "0 20px",
+      height: "54px",
+      background: "var(--surface)",
+      border: "1px solid var(--border)",
+      borderRadius: "var(--r-xl)",
+      marginBottom: "20px"
     }}>
 
-      {/* BRAND */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <img src={logo} alt="Traceback Logo" style={{ width: "38px", height: "38px" }} />
-        <h2 style={{
-          margin: 0, color: textColor,
-          fontSize: "clamp(16px, 3vw, 20px)",
-          fontWeight: "800", letterSpacing: "0.3px"
+      {/* Brand */}
+      <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+        <img src={logo} alt="Traceback" style={{ width: "30px", height: "30px" }} />
+        <span style={{
+          fontFamily: "'Syne', sans-serif",
+          fontWeight: "700",
+          fontSize: "17px",
+          color: "var(--text-1)",
+          letterSpacing: "-0.3px"
         }}>
           Traceback
-        </h2>
+        </span>
       </div>
 
-      {/* RIGHT SIDE */}
-      <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-        <Link to="/" style={linkStyle("/")}>Dashboard</Link>
-
-        {/* TOGGLE SWITCH */}
-        <div
-          onClick={() => setDarkMode(!darkMode)}
-          title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      {/* Right side */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <Link
+          to="/"
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "7px",
-            cursor: "pointer",
-            userSelect: "none"
+            textDecoration: "none",
+            fontSize: "13px",
+            fontWeight: "600",
+            color: isActive("/") ? "var(--primary)" : "var(--text-2)",
+            background: isActive("/") ? "var(--primary-light)" : "transparent",
+            padding: "6px 12px",
+            borderRadius: "var(--r-md)",
+            transition: "all 0.15s"
           }}
         >
-          {/* Sun icon */}
-          <span style={{
-            fontSize: "13px",
-            opacity: darkMode ? 0.4 : 1,
-            transition: "opacity 0.3s"
-          }}>☀️</span>
+          Dashboard
+        </Link>
 
-          {/* The pill track */}
+        {/* Dark mode toggle */}
+        <div
+          onClick={() => setDarkMode(!darkMode)}
+          style={{
+            display: "flex", alignItems: "center", gap: "6px",
+            cursor: "pointer",
+            padding: "5px 10px",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--r-md)",
+            background: "var(--surface-2)",
+            userSelect: "none",
+            transition: "all 0.2s"
+          }}
+        >
+          <span style={{ fontSize: "12px", opacity: darkMode ? 0.35 : 1, transition: "opacity 0.2s" }}>☀️</span>
+
           <div style={{
-            width: "44px",
-            height: "24px",
-            borderRadius: "12px",
-            background: darkMode
-              ? "linear-gradient(135deg, #6366f1, #4f46e5)"
-              : "#d1d5db",
-            position: "relative",
-            transition: "background 0.3s",
-            boxShadow: darkMode
-              ? "0 0 10px rgba(99,102,241,0.5)"
-              : "inset 0 1px 3px rgba(0,0,0,0.15)"
+            width: "34px", height: "18px", borderRadius: "9px",
+            background: darkMode ? "var(--primary)" : "var(--border)",
+            position: "relative", transition: "background 0.25s"
           }}>
-            {/* The sliding circle */}
             <div style={{
-              position: "absolute",
-              top: "3px",
-              left: darkMode ? "23px" : "3px",
-              width: "18px",
-              height: "18px",
-              borderRadius: "50%",
+              position: "absolute", top: "2px",
+              left: darkMode ? "18px" : "2px",
+              width: "14px", height: "14px", borderRadius: "50%",
               background: "white",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-              transition: "left 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)"
             }} />
           </div>
 
-          {/* Moon icon */}
-          <span style={{
-            fontSize: "13px",
-            opacity: darkMode ? 1 : 0.4,
-            transition: "opacity 0.3s"
-          }}>🌙</span>
+          <span style={{ fontSize: "12px", opacity: darkMode ? 1 : 0.35, transition: "opacity 0.2s" }}>🌙</span>
         </div>
       </div>
-    </div>
+    </nav>
   )
 }
 

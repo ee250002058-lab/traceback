@@ -1,78 +1,72 @@
 import ItemForm from "./ItemForm.jsx"
 
 function EditModal({ item, onSave, onClose }) {
-
-  const handleSave = (updatedItem) => {
-    onSave(updatedItem)
-    onClose()
-  }
-
   return (
-    /* BACKDROP */
     <div
       onClick={onClose}
       style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        backdropFilter: "blur(3px)",
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.45)",
+        backdropFilter: "blur(4px)",
         zIndex: 1000,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "20px"
+        padding: "20px",
+        animation: "fadeIn 0.2s ease"
       }}
     >
-      {/* MODAL BOX — stop click from closing when clicking inside */}
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: "white",
-          borderRadius: "18px",
-          padding: "28px",
-          width: "100%",
-          maxWidth: "520px",
-          maxHeight: "90vh",
-          overflowY: "auto",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-          position: "relative"
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--r-2xl)",
+          width: "100%", maxWidth: "500px",
+          maxHeight: "90vh", overflowY: "auto",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
+          animation: "fadeUp 0.25s ease"
         }}
       >
-        {/* CLOSE BUTTON */}
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: "16px", right: "16px",
-            background: "#f3f4f6",
-            border: "none",
-            borderRadius: "8px",
-            width: "32px", height: "32px",
-            cursor: "pointer",
-            fontSize: "16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#555"
-          }}
-        >
-          ✕
-        </button>
-
-        <h2 style={{
-          margin: "0 0 20px",
-          fontSize: "22px",
-          fontWeight: "800",
-          color: "#1e1b4b"
+        {/* Header */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "22px 24px 16px",
+          borderBottom: "1px solid var(--border)"
         }}>
-          ✏️ Edit Item
-        </h2>
+          <h2 style={{
+            fontFamily: "'Syne', sans-serif",
+            fontSize: "19px", fontWeight: "700",
+            color: "var(--text-1)", letterSpacing: "-0.2px"
+          }}>
+            Edit Item
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--r-sm)",
+              width: "28px", height: "28px",
+              cursor: "pointer",
+              color: "var(--text-2)",
+              fontSize: "13px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >✕</button>
+        </div>
 
-        <ItemForm
-          addItem={handleSave}
-          initialValues={item}
-          isEdit={true}
-        />
+        <div style={{ padding: "20px 24px 24px" }}>
+          <ItemForm
+            addItem={(updated) => { onSave(updated); onClose() }}
+            initialValues={item}
+            isEdit={true}
+          />
+        </div>
       </div>
     </div>
   )

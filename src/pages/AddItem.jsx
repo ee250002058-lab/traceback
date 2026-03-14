@@ -1,7 +1,7 @@
-import ItemForm from "../components/ItemForm.jsx"
+import ItemForm   from "../components/ItemForm.jsx"
 import { useNavigate } from "react-router-dom"
-import { createItem } from "../utils/api.js"
-import { useState } from "react"
+import { createItem }  from "../utils/api.js"
+import { useState }    from "react"
 
 function AddItem() {
   const navigate            = useNavigate()
@@ -9,68 +9,78 @@ function AddItem() {
   const [saving, setSaving] = useState(false)
 
   const addItem = async (item) => {
-    setSaving(true)
-    setError("")
+    setSaving(true); setError("")
     try {
       await createItem(item)
       navigate("/")
     } catch (err) {
-      // Show the actual error so we know exactly what failed
-      setError(err.message || "Failed to save item.")
+      setError(err.message || "Failed to save. Make sure server is running.")
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div style={{
-      padding: "40px", maxWidth: "620px", margin: "auto",
-      background: "white", borderRadius: "18px",
-      boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
-    }}>
+    <div style={{ maxWidth: "540px", margin: "0 auto", animation: "fadeUp 0.3s ease" }}>
+
       <button
         onClick={() => navigate(-1)}
         style={{
           background: "none", border: "none",
-          color: "#6366f1", cursor: "pointer",
-          fontSize: "15px", fontWeight: "600",
-          marginBottom: "20px", padding: "0",
-          display: "flex", alignItems: "center", gap: "6px"
+          color: "var(--text-2)", cursor: "pointer",
+          fontSize: "13px", fontWeight: "600",
+          marginBottom: "16px", padding: "0",
+          display: "flex", alignItems: "center", gap: "5px",
+          transition: "color 0.15s"
         }}
+        onMouseEnter={e => e.currentTarget.style.color = "var(--primary)"}
+        onMouseLeave={e => e.currentTarget.style.color = "var(--text-2)"}
       >
         ← Back
       </button>
 
-      <h2 style={{
-        textAlign: "center", marginBottom: "28px",
-        fontSize: "26px", color: "#1e1b4b"
+      <div style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--r-2xl)",
+        padding: "28px 28px 32px",
+        boxShadow: "var(--shadow-lg)"
       }}>
-        ➕ Add Lost / Found Item
-      </h2>
-
-      {error && (
-        <div style={{
-          background: "#fee2e2", color: "#ef4444",
-          padding: "12px 16px", borderRadius: "8px",
-          marginBottom: "16px", fontSize: "14px",
-          fontWeight: "500"
+        <h2 style={{
+          fontFamily: "'Syne', sans-serif",
+          fontSize: "22px", fontWeight: "800",
+          color: "var(--text-1)",
+          marginBottom: "22px",
+          letterSpacing: "-0.3px"
         }}>
-          ⚠️ {error}
-        </div>
-      )}
+          Report an Item
+        </h2>
 
-      {saving && (
-        <div style={{
-          background: "#eef2ff", color: "#4f46e5",
-          padding: "12px 16px", borderRadius: "8px",
-          marginBottom: "16px", fontSize: "14px",
-          fontWeight: "500"
-        }}>
-          ⏳ Saving item...
-        </div>
-      )}
+        {error && (
+          <div style={{
+            background: "var(--lost-light)",
+            border: "1px solid var(--lost)",
+            color: "var(--lost)",
+            padding: "10px 14px", borderRadius: "var(--r-md)",
+            marginBottom: "14px", fontSize: "13px", fontWeight: "500"
+          }}>
+            ⚠️ {error}
+          </div>
+        )}
 
-      <ItemForm addItem={addItem} />
+        {saving && (
+          <div style={{
+            background: "var(--primary-light)",
+            color: "var(--primary)",
+            padding: "10px 14px", borderRadius: "var(--r-md)",
+            marginBottom: "14px", fontSize: "13px", fontWeight: "500"
+          }}>
+            ⏳ Saving...
+          </div>
+        )}
+
+        <ItemForm addItem={addItem} />
+      </div>
     </div>
   )
 }
