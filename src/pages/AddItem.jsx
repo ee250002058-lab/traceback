@@ -14,73 +14,56 @@ function AddItem() {
       await createItem(item)
       navigate("/")
     } catch (err) {
-      setError(err.message || "Failed to save. Make sure server is running.")
+      setError(err.message || "Failed to save item.")
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div style={{ maxWidth: "540px", margin: "0 auto", animation: "fadeUp 0.3s ease" }}>
-
+    <div style={{
+      padding: "40px", maxWidth: "620px", margin: "auto",
+      background: "white", borderRadius: "18px",
+      boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+    }}>
       <button
         onClick={() => navigate(-1)}
         style={{
           background: "none", border: "none",
-          color: "var(--text-2)", cursor: "pointer",
-          fontSize: "13px", fontWeight: "600",
-          marginBottom: "16px", padding: "0",
-          display: "flex", alignItems: "center", gap: "5px",
-          transition: "color 0.15s"
+          color: "#6366f1", cursor: "pointer",
+          fontSize: "15px", fontWeight: "600",
+          marginBottom: "20px", padding: "0",
+          display: "flex", alignItems: "center", gap: "6px"
         }}
-        onMouseEnter={e => e.currentTarget.style.color = "var(--primary)"}
-        onMouseLeave={e => e.currentTarget.style.color = "var(--text-2)"}
       >
         ← Back
       </button>
 
-      <div style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--r-2xl)",
-        padding: "28px 28px 32px",
-        boxShadow: "var(--shadow-lg)"
-      }}>
-        <h2 style={{
-          fontFamily: "'Syne', sans-serif",
-          fontSize: "22px", fontWeight: "800",
-          color: "var(--text-1)",
-          marginBottom: "22px",
-          letterSpacing: "-0.3px"
+      <h2 style={{ textAlign: "center", marginBottom: "28px", fontSize: "26px", color: "#1e1b4b" }}>
+        ➕ Add Lost / Found Item
+      </h2>
+
+      {error && (
+        <div style={{
+          background: "#fee2e2", color: "#ef4444",
+          padding: "12px 16px", borderRadius: "8px",
+          marginBottom: "16px", fontSize: "14px", fontWeight: "500"
         }}>
-          Report an Item
-        </h2>
+          ⚠️ {error}
+        </div>
+      )}
 
-        {error && (
-          <div style={{
-            background: "var(--lost-light)",
-            border: "1px solid var(--lost)",
-            color: "var(--lost)",
-            padding: "10px 14px", borderRadius: "var(--r-md)",
-            marginBottom: "14px", fontSize: "13px", fontWeight: "500"
-          }}>
-            ⚠️ {error}
-          </div>
-        )}
+      {saving && (
+        <div style={{
+          background: "#eef2ff", color: "#4f46e5",
+          padding: "12px 16px", borderRadius: "8px",
+          marginBottom: "16px", fontSize: "14px", fontWeight: "500"
+        }}>
+          ⏳ Saving item...
+        </div>
+      )}
 
-        {saving && (
-          <div style={{
-            background: "var(--primary-light)",
-            color: "var(--primary)",
-            padding: "10px 14px", borderRadius: "var(--r-md)",
-            marginBottom: "14px", fontSize: "13px", fontWeight: "500"
-          }}>
-            ⏳ Saving...
-          </div>
-        )}
-
-        <ItemForm addItem={addItem} />
-      </div>
+      <ItemForm addItem={addItem} />
     </div>
   )
 }

@@ -1,116 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-
-:root {
-  --primary:        #4F46E5;
-  --primary-hover:  #4338CA;
-  --primary-light:  #EEF2FF;
-  --primary-muted:  #C7D2FE;
-
-  --lost:           #DC2626;
-  --lost-light:     #FEF2F2;
-  --found:          #059669;
-  --found-light:    #ECFDF5;
-  --resolved:       #7C3AED;
-  --resolved-light: #F5F3FF;
-
-  --bg:        #F2F1ED;
-  --surface:   #FFFFFF;
-  --surface-2: #FAFAF8;
-
-  --border:   #E5E4E0;
-  --border-2: #F0EFEB;
-
-  --text-1: #111111;
-  --text-2: #52525B;
-  --text-3: #A1A1AA;
-  --text-4: #D4D4D8;
-
-  --shadow-sm:    0 1px 3px rgba(0,0,0,0.06);
-  --shadow-md:    0 2px 12px rgba(0,0,0,0.08);
-  --shadow-lg:    0 8px 30px rgba(0,0,0,0.10);
-  --shadow-hover: 0 16px 48px rgba(0,0,0,0.13);
-
-  --r-xs: 4px;
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 18px;
-  --r-2xl: 24px;
+* {
+  box-sizing: border-box;
 }
-
-.dark {
-  --primary-light:  rgba(79,70,229,0.15);
-  --primary-muted:  rgba(79,70,229,0.3);
-  --lost-light:     rgba(220,38,38,0.12);
-  --found-light:    rgba(5,150,105,0.12);
-  --resolved-light: rgba(124,58,237,0.12);
-
-  --bg:        #0C0C10;
-  --surface:   #16161C;
-  --surface-2: #1C1C24;
-
-  --border:   #2A2A36;
-  --border-2: #222230;
-
-  --text-1: #F4F4F5;
-  --text-2: #A1A1AA;
-  --text-3: #52525B;
-  --text-4: #3F3F46;
-
-  --shadow-sm:    0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md:    0 2px 12px rgba(0,0,0,0.5);
-  --shadow-lg:    0 8px 30px rgba(0,0,0,0.6);
-  --shadow-hover: 0 16px 48px rgba(0,0,0,0.7);
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text-1);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  line-height: 1.5;
-  transition: background 0.3s, color 0.3s;
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
-#root { width: 100%; }
+#root {
+  width: 100%;
+}
 
-::selection { background: var(--primary-light); color: var(--primary); }
+@media (max-width: 768px) {
+  body {
+    padding: 12px 10px;
+  }
+}
 
-::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
-
-input, textarea, select, button {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.5; transform: scale(0.75); }
-}
-
-.fade-up {
-  animation: fadeUp 0.3s ease both;
-}
+::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.5); border-radius: 10px; }
 
 .itemIcon {
   display: inline-block;
   transition: transform 0.2s ease;
 }
 .itemIcon:hover {
-  transform: scale(1.2) rotate(8deg);
+  transform: scale(1.3) rotate(10deg);
 }

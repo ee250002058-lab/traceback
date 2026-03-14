@@ -1,31 +1,28 @@
-function SearchBar({ search, setSearch }) {
+function SearchBar({ search, setSearch, darkMode }) {
   return (
-    <div
-      style={{
-        display: "flex", alignItems: "center", gap: "8px",
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--r-lg)",
-        padding: "9px 14px",
-        flex: 1, maxWidth: "360px",
-        boxShadow: "var(--shadow-sm)",
-        transition: "border-color 0.15s"
-      }}
-      onFocus={e => e.currentTarget.style.borderColor = "var(--primary)"}
-      onBlur={e  => e.currentTarget.style.borderColor = "var(--border)"}
-    >
-      <span style={{ fontSize: "14px", flexShrink: 0, opacity: 0.6 }}>🔍</span>
+    <div style={{
+      background: darkMode ? "#2d2b55" : "white",
+      padding: "11px 16px",
+      borderRadius: "10px",
+      boxShadow: "0 4px 10px rgba(0,0,0,0.07)",
+      margin: "20px 0",
+      display: "flex",
+      alignItems: "center",
+      maxWidth: "420px",
+      border: `1px solid ${darkMode ? "#4f46e5" : "#e5e7eb"}`,
+      transition: "all 0.3s"
+    }}>
+      <span style={{ marginRight: "8px", fontSize: "17px" }}>🔍</span>
       <input
         type="text"
-        placeholder="Search items, locations..."
+        placeholder="Search items, locations, categories..."
         value={search}
         onChange={e => setSearch(e.target.value)}
         style={{
           border: "none", outline: "none",
+          width: "100%", fontSize: "14px",
           background: "transparent",
-          fontSize: "14px",
-          color: "var(--text-1)",
-          width: "100%"
+          color: darkMode ? "#e2e8f0" : "#333"
         }}
       />
       {search && (
@@ -34,10 +31,8 @@ function SearchBar({ search, setSearch }) {
           style={{
             background: "none", border: "none",
             cursor: "pointer",
-            color: "var(--text-3)",
-            fontSize: "13px",
-            padding: "0", flexShrink: 0,
-            lineHeight: 1
+            color: darkMode ? "#94a3b8" : "#aaa",
+            fontSize: "15px", padding: "0 2px", lineHeight: 1
           }}
         >✕</button>
       )}

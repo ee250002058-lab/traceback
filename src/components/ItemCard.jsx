@@ -1,30 +1,22 @@
 import { useState } from "react"
 
-const STATUS_CONFIG = {
-  Lost:     { color: "#DC2626", bg: "#FEF2F2", label: "Lost"     },
-  Found:    { color: "#059669", bg: "#ECFDF5", label: "Found"    },
-  Resolved: { color: "#7C3AED", bg: "#F5F3FF", label: "Resolved" },
-}
-
 function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [actionDone,    setActionDone]    = useState(false)
 
-  const s = STATUS_CONFIG[item.status] || STATUS_CONFIG.Lost
-
   const getIcon = () => {
-    const catIcons = {
+    const categoryIcons = {
       Electronics: "💻", Clothing: "👕", Accessories: "👜",
       Documents: "📄", Keys: "🔑", Bags: "🎒", Other: "📦"
     }
-    if (item.category && catIcons[item.category]) return catIcons[item.category]
-    const n = item.name.toLowerCase()
-    if (n.includes("wallet")) return "👛"
-    if (n.includes("phone"))  return "📱"
-    if (n.includes("laptop")) return "💻"
-    if (n.includes("bottle")) return "🥤"
-    if (n.includes("bag"))    return "🎒"
-    if (n.includes("key"))    return "🔑"
+    if (item.category && categoryIcons[item.category]) return categoryIcons[item.category]
+    const name = item.name.toLowerCase()
+    if (name.includes("wallet"))  return "👛"
+    if (name.includes("bottle"))  return "🥤"
+    if (name.includes("phone"))   return "📱"
+    if (name.includes("laptop"))  return "💻"
+    if (name.includes("bag"))     return "🎒"
+    if (name.includes("key"))     return "🔑"
     return "📦"
   }
 
@@ -33,7 +25,7 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
     const d = new Date(dt)
     if (isNaN(d)) return null
     return d.toLocaleString("en-IN", {
-      day: "2-digit", month: "short",
+      day: "2-digit", month: "short", year: "numeric",
       hour: "2-digit", minute: "2-digit", hour12: true
     })
   }
@@ -48,284 +40,204 @@ function ItemCard({ item, deleteItem, resolveItem, onEdit }) {
     if (mins  < 60)  return `${mins}m ago`
     if (hours < 24)  return `${hours}h ago`
     if (days  === 1) return "Yesterday"
-    return `${days}d ago`
+    return `${days} days ago`
   }
 
-  const ACTION = {
-    Lost:  { text: "🙋 I Found It", color: "#4F46E5", bg: "#EEF2FF" },
-    Found: { text: "✋ Claim Item",  color: "#059669", bg: "#ECFDF5" },
+  const statusConfig = {
+    Lost:     { color: "#ef4444", bg: "#fee2e2", border: "transparent" },
+    Found:    { color: "#10b981", bg: "#d1fae5", border: "transparent" },
+    Resolved: { color: "#6366f1", bg: "#eef2ff", border: "#6366f1"    },
   }
-  const action = ACTION[item.status]
+  const s = statusConfig[item.status] || statusConfig.Lost
+
+  const handleAction = (e) => {
+    e.stopPropagation()
+    if (!actionDone) { setActionDone(true) }
+    else { resolveItem(item.id) }
+  }
+
+  const actionButton = () => {
+    if (item.status === "Lost") return {
+      idle: "🙋 I Found It!", confirm: "✅ Confirm?",
+      idleBg: "#3b82f6", confirmBg: "#10b981",
+    }
+    if (item.status === "Found") return {
+      idle: "✋ Claim Item", confirm: "✅ Confirm?",
+      idleBg: "#10b981", confirmBg: "#6366f1",
+    }
+    return null
+  }
+  const btn = actionButton()
 
   return (
     <div
-      className="fade-up"
       style={{
-        background: "var(--surface)",
-        borderRadius: "var(--r-lg)",
-        border: "1px solid var(--border)",
-        boxShadow: "var(--shadow-md)",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
+        background: "white",
+        borderRadius: "14px",
+        padding: "18px",
+        boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
+        transition: "all 0.25s ease",
         position: "relative",
-        transition: "transform 0.2s ease, box-shadow 0.2s ease"
+        border: `2px solid ${s.border}`,
+        display: "flex", flexDirection: "column"
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-3px)"
-        e.currentTarget.style.boxShadow = "var(--shadow-hover)"
+        e.currentTarget.style.transform = "translateY(-6px) scale(1.02)"
+        e.currentTarget.style.boxShadow = "0 16px 32px rgba(0,0,0,0.14)"
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)"
-        e.currentTarget.style.boxShadow = "var(--shadow-md)"
+        e.currentTarget.style.transform = "translateY(0) scale(1)"
+        e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.08)"
         setConfirmDelete(false)
         setActionDone(false)
       }}
     >
-      {/* Left status strip */}
+      {/* STATUS BADGE */}
       <div style={{
-        position: "absolute",
-        left: 0, top: 0, bottom: 0,
-        width: "3px",
-        background: s.color,
-        borderRadius: "var(--r-lg) 0 0 var(--r-lg)"
-      }} />
+        position: "absolute", top: "12px", right: "12px",
+        background: s.bg, color: s.color,
+        padding: "3px 10px", borderRadius: "20px",
+        fontSize: "11px", fontWeight: "700"
+      }}>
+        {item.status}
+      </div>
 
-      {/* Image */}
+      {/* ICON */}
+      <div className="itemIcon" style={{ fontSize: "32px", marginBottom: "6px" }}>
+        {getIcon()}
+      </div>
+
+      {/* IMAGE */}
       {item.image && (
-        <div style={{ marginLeft: "3px" }}>
-          <img
-            src={item.image}
-            alt={item.name}
-            style={{
-              width: "100%", height: "130px",
-              objectFit: "cover", display: "block"
-            }}
-          />
+        <img src={item.image} alt={item.name}
+          style={{
+            width: "100%", height: "150px",
+            objectFit: "cover", borderRadius: "10px", marginBottom: "10px"
+          }} />
+      )}
+
+      {/* NAME */}
+      <h3 style={{
+        margin: "4px 0", fontSize: "17px",
+        color: "#1e1b4b", fontWeight: "700", paddingRight: "70px"
+      }}>
+        {item.name}
+      </h3>
+
+      {/* CATEGORY */}
+      {item.category && (
+        <span style={{
+          display: "inline-block",
+          background: "#f3f4f6", color: "#555",
+          fontSize: "11px", fontWeight: "600",
+          padding: "2px 8px", borderRadius: "12px",
+          marginBottom: "6px", alignSelf: "flex-start"
+        }}>
+          {item.category}
+        </span>
+      )}
+
+      {/* LOCATION */}
+      <p style={{ color: "#666", fontSize: "13px", margin: "4px 0" }}>
+        📍 {item.location}
+      </p>
+
+      {/* DATE TIME */}
+      {item.dateTime && (
+        <p style={{ color: "#666", fontSize: "13px", margin: "4px 0" }}>
+          📅 {formatDateTime(item.dateTime)}
+        </p>
+      )}
+
+      {/* DESCRIPTION */}
+      {item.description && (
+        <p style={{
+          color: "#888", fontSize: "12px",
+          margin: "6px 0", lineHeight: "1.5",
+          overflow: "hidden",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical", flex: 1
+        }}>
+          {item.description}
+        </p>
+      )}
+
+      {/* TIMESTAMP */}
+      {item.createdAt && (
+        <p style={{ color: "#ccc", fontSize: "11px", margin: "6px 0 10px" }}>
+          🕐 Posted {getTimeAgo(item.createdAt)}
+        </p>
+      )}
+
+      {/* RESOLVED BANNER */}
+      {item.status === "Resolved" && (
+        <div style={{
+          background: "#eef2ff", border: "1px solid #c7d2fe",
+          borderRadius: "8px", padding: "9px",
+          textAlign: "center", fontSize: "13px",
+          fontWeight: "600", color: "#4f46e5", marginBottom: "10px"
+        }}>
+          ✅ This item has been resolved
         </div>
       )}
 
-      {/* Content */}
-      <div style={{
-        padding: "14px 14px 14px 18px",
-        flex: 1, display: "flex",
-        flexDirection: "column"
-      }}>
-
-        {/* Top row: icon + status badge */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "10px"
-        }}>
-          <span className="itemIcon" style={{ fontSize: "26px" }}>
-            {getIcon()}
-          </span>
-          <span style={{
-            fontSize: "10px",
-            fontWeight: "700",
-            letterSpacing: "0.4px",
-            textTransform: "uppercase",
-            color: s.color,
-            background: s.bg,
-            padding: "3px 8px",
-            borderRadius: "20px"
+      {/* BUTTONS */}
+      <div style={{ display: "flex", gap: "6px", marginTop: "auto" }}>
+        {btn && (
+          <button onClick={handleAction} style={{
+            flex: 2, padding: "8px 6px",
+            background: actionDone ? btn.confirmBg : btn.idleBg,
+            color: "white", border: "none",
+            borderRadius: "8px", cursor: "pointer",
+            fontSize: "12px", fontWeight: "600",
+            transition: "all 0.2s", lineHeight: "1.3"
           }}>
-            {s.label}
-          </span>
-        </div>
-
-        {/* Name */}
-        <h3 style={{
-          fontSize: "15px",
-          fontWeight: "700",
-          color: "var(--text-1)",
-          margin: "0 0 5px",
-          lineHeight: "1.3",
-          letterSpacing: "-0.2px"
-        }}>
-          {item.name}
-        </h3>
-
-        {/* Category chip */}
-        {item.category && (
-          <span style={{
-            display: "inline-block",
-            alignSelf: "flex-start",
-            fontSize: "10px",
-            fontWeight: "600",
-            color: "var(--text-2)",
-            background: "var(--surface-2)",
-            border: "1px solid var(--border)",
-            padding: "2px 7px",
-            borderRadius: "20px",
-            marginBottom: "8px"
-          }}>
-            {item.category}
-          </span>
+            {actionDone ? btn.confirm : btn.idle}
+          </button>
         )}
 
-        {/* Metadata */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "6px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <span style={{ fontSize: "10px" }}>📍</span>
-            <span style={{ fontSize: "12px", color: "var(--text-2)", fontWeight: "500" }}>
-              {item.location}
-            </span>
-          </div>
-          {item.dateTime && (
-            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-              <span style={{ fontSize: "10px" }}>📅</span>
-              <span style={{ fontSize: "12px", color: "var(--text-2)" }}>
-                {formatDateTime(item.dateTime)}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Description */}
-        {item.description && (
-          <p style={{
-            fontSize: "12px",
-            color: "var(--text-3)",
-            lineHeight: "1.5",
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            marginBottom: "6px"
-          }}>
-            {item.description}
-          </p>
-        )}
-
-        {/* Posted time */}
-        {item.createdAt && (
-          <p style={{
-            fontSize: "11px",
-            color: "var(--text-4)",
-            marginBottom: "10px"
-          }}>
-            Posted {getTimeAgo(item.createdAt)}
-          </p>
-        )}
-
-        {/* Resolved banner */}
-        {item.status === "Resolved" && (
-          <div style={{
-            background: "var(--resolved-light)",
-            borderRadius: "var(--r-sm)",
-            padding: "8px 10px",
-            fontSize: "12px",
-            fontWeight: "600",
-            color: "#7C3AED",
-            textAlign: "center",
-            marginBottom: "10px"
-          }}>
-            ✅ Item resolved
-          </div>
-        )}
-
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-
-        {/* Divider */}
-        <div style={{
-          height: "1px",
-          background: "var(--border)",
-          margin: "0 0 10px"
-        }} />
-
-        {/* Buttons */}
-        <div style={{ display: "flex", gap: "5px" }}>
-
-          {/* Primary action */}
-          {action && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                if (!actionDone) {
-                  setActionDone(true)
-                } else {
-                  resolveItem(item.id)
-                }
-              }}
-              style={{
-                flex: 2,
-                padding: "7px 8px",
-                background: actionDone ? action.color : action.bg,
-                color: actionDone ? "white" : action.color,
-                border: "1px solid transparent",
-                borderRadius: "var(--r-sm)",
-                cursor: "pointer",
-                fontSize: "11px",
-                fontWeight: "700",
-                transition: "all 0.15s",
-                whiteSpace: "nowrap"
-              }}
-            >
-              {actionDone ? "✅ Confirm?" : action.text}
-            </button>
-          )}
-
-          {/* Edit */}
-          {item.status !== "Resolved" && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(item) }}
-              style={{
-                flex: 1,
-                padding: "7px",
-                background: "var(--surface-2)",
-                color: "var(--text-2)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--r-sm)",
-                cursor: "pointer",
-                fontSize: "11px",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "3px",
-                transition: "all 0.15s"
-              }}
-            >
-              ✏️ Edit
-            </button>
-          )}
-
-          {/* Delete */}
+        {item.status !== "Resolved" && (
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              if (!confirmDelete) {
-                setConfirmDelete(true)
-                setTimeout(() => setConfirmDelete(false), 3000)
-              } else {
-                deleteItem(item.id)
-              }
-            }}
+            onClick={(e) => { e.stopPropagation(); onEdit(item) }}
             style={{
-              flex: confirmDelete ? 2 : 1,
-              padding: "7px",
-              background: confirmDelete ? "#DC2626" : "transparent",
-              color: confirmDelete ? "white" : "#DC2626",
-              border: `1px solid ${confirmDelete ? "#DC2626" : "var(--lost-light)"}`,
-              borderRadius: "var(--r-sm)",
-              cursor: "pointer",
-              fontSize: "11px",
-              fontWeight: "600",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "3px",
-              transition: "all 0.15s",
-              whiteSpace: "nowrap"
+              flex: 1, padding: "8px 6px",
+              background: "#f3f4f6", color: "#4f46e5",
+              border: "1.5px solid #e0e7ff",
+              borderRadius: "8px", cursor: "pointer",
+              fontSize: "12px", fontWeight: "600",
+              transition: "all 0.2s",
+              display: "flex", alignItems: "center",
+              justifyContent: "center", gap: "4px"
             }}
           >
-            {confirmDelete ? "⚠️ Sure?" : "🗑"}
+            ✏️ Edit
           </button>
-        </div>
+        )}
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            if (!confirmDelete) {
+              setConfirmDelete(true)
+              setTimeout(() => setConfirmDelete(false), 3000)
+            } else {
+              deleteItem(item.id)
+            }
+          }}
+          style={{
+            flex: 1, padding: "8px 6px",
+            background: confirmDelete ? "#ef4444" : "#fee2e2",
+            color: confirmDelete ? "white" : "#ef4444",
+            border: "none", borderRadius: "8px",
+            cursor: "pointer", fontSize: "12px",
+            fontWeight: "600", transition: "all 0.2s",
+            display: "flex", alignItems: "center",
+            justifyContent: "center", gap: "4px"
+          }}
+        >
+          {confirmDelete ? "⚠️ Sure?" : "🗑 Delete"}
+        </button>
       </div>
     </div>
   )
